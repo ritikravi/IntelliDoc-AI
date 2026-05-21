@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: intellidoc-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: intellidoc
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - intellidoc-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: intellidoc-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - intellidoc-network
+
+  # Backend (Node.js)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend.Dockerfile
+    container_name: intellidoc-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/intellidoc?authSource=admin
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      AI_SERVICE_URL: http://ai-service:8000
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - intellidoc-network
+
+  # AI Service (Python FastAPI)
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: ../docker/ai-service.Dockerfile
+    container_name: intellidoc-ai-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      AI_SERVICE_PORT: 8000
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/intellidoc?authSource=admin
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - ./ai-service:/app
+      - ai_models:/app/ml_models
+    networks:
+      - intellidoc-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend.Dockerfile
+    container_name: intellidoc-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:5000/api/v1
+      VITE_AI_SERVICE_URL: http://localhost:8000
+      VITE_WS_URL: ws://localhost:5000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - intellidoc-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+  ai_models:
+
+networks:
+  intellidoc-network:
+    driver: bridge
