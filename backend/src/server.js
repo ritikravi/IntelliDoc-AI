@@ -62,12 +62,19 @@ app.use('*', (req, res) => {
 const startServer = async () => {
   try {
     await connectDB();
-    await connectRedis();
     
-    app.listen(PORT, () => {
+    // Try to connect to Redis, but don't fail if it's not available
+    try {
+      await connectRedis();
+      console.log('✅ Redis connected');
+    } catch (redisError) {
+      console.warn('⚠️  Redis not available, continuing without cache:', redisError.message);
+    }
+    
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📝 Environment: ${process.env.NODE_ENV}`);
-      console.log(`🔗 API: http://localhost:${PORT}/api/${API_VERSION}`);
+      console.log(`🔗 API: http://0.0.0.0:${PORT}/api/${API_VERSION}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
