@@ -17,35 +17,24 @@ export const uploadDocument = async (req, res, next) => {
       throw new AppError('Please upload a file', 400);
     }
 
-    // Upload to Cloudinary
-    const result = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'intellidoc',
-          resource_type: 'auto',
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      uploadStream.end(req.file.buffer);
-    });
+    // Convert file to base64 for storage (temporary solution)
+    const fileBase64 = req.file.buffer.toString('base64');
+    const fileUrl = `data:${req.file.mimetype};base64,${fileBase64}`;
 
     const document = await Document.create({
       user: req.user._id,
       fileName: req.file.originalname,
-      fileUrl: result.secure_url,
+      fileUrl: fileUrl,
       fileType: req.file.mimetype.split('/')[1],
       fileSize: req.file.size,
-      cloudinaryId: result.public_id,
       status: 'uploaded',
     });
 
     res.status(201).json({
       success: true,
       documentId: document._id,
-      fileUrl: result.secure_url,
+      fileUrl: 'uploaded',
+      message: 'Document uploaded successfully',
     });
   } catch (error) {
     next(error);
