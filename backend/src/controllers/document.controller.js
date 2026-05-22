@@ -1,15 +1,7 @@
 import axios from 'axios';
-import { v2 as cloudinary } from 'cloudinary';
 import Document from '../models/Document.model.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { cacheGet, cacheSet, cacheDel } from '../config/redis.js';
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 export const uploadDocument = async (req, res, next) => {
   try {
@@ -160,11 +152,6 @@ export const deleteDocument = async (req, res, next) => {
 
     if (document.user.toString() !== req.user._id.toString()) {
       throw new AppError('Not authorized', 403);
-    }
-
-    // Delete from Cloudinary
-    if (document.cloudinaryId) {
-      await cloudinary.uploader.destroy(document.cloudinaryId);
     }
 
     await document.deleteOne();
