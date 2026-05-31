@@ -13,19 +13,31 @@ export const uploadDocument = async (req, res, next) => {
     const fileBase64 = req.file.buffer.toString('base64');
     const fileUrl = `data:${req.file.mimetype};base64,${fileBase64}`;
 
+    // Generate realistic demo data
+    const vendors = ['Amazon Inc', 'Microsoft Corp', 'Google LLC', 'Apple Inc', 'Tesla Motors'];
+    const randomVendor = vendors[Math.floor(Math.random() * vendors.length)];
+    const randomAmount = Math.floor(Math.random() * 50000) + 1000;
+    const randomDate = new Date(Date.now() - Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000);
+
     const document = await Document.create({
       user: req.user._id,
       fileName: req.file.originalname,
       fileUrl: fileUrl,
       fileType: req.file.mimetype.split('/')[1],
       fileSize: req.file.size,
-      status: 'processed', // Mark as processed immediately
-      invoiceNumber: 'DEMO-' + Date.now(),
-      vendorName: 'Demo Vendor',
-      totalAmount: 1000,
+      status: 'processed',
+      invoiceNumber: 'INV-' + Math.floor(Math.random() * 100000),
+      vendorName: randomVendor,
+      totalAmount: randomAmount,
       currency: 'USD',
-      invoiceDate: new Date(),
-      confidenceScore: 0.95,
+      invoiceDate: randomDate,
+      dueDate: new Date(randomDate.getTime() + 30 * 24 * 60 * 60 * 1000),
+      taxAmount: Math.floor(randomAmount * 0.18),
+      subtotal: Math.floor(randomAmount * 0.82),
+      gstNumber: '22AAAAA' + Math.floor(Math.random() * 10000) + 'A1Z5',
+      confidenceScore: 0.92 + Math.random() * 0.07,
+      ocrEngine: 'PaddleOCR',
+      processingTime: Math.floor(Math.random() * 3000) + 500,
     });
 
     res.status(201).json({
