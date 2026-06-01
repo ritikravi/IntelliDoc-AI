@@ -14,10 +14,50 @@ export const uploadDocument = async (req, res, next) => {
     const fileUrl = `data:${req.file.mimetype};base64,${fileBase64}`;
 
     // Generate realistic demo data
-    const vendors = ['Amazon Inc', 'Microsoft Corp', 'Google LLC', 'Apple Inc', 'Tesla Motors'];
+    const vendors = [
+      { name: 'Amazon Web Services', gst: '22AAAAA0000A1Z5' },
+      { name: 'Microsoft Corporation', gst: '27BBBBB1111B2Y6' },
+      { name: 'Google Cloud Platform', gst: '29CCCCC2222C3X7' },
+      { name: 'Apple Inc', gst: '24DDDDD3333D4W8' },
+      { name: 'Tesla Motors Inc', gst: '23EEEEE4444E5V9' }
+    ];
+    
+    const products = [
+      { name: 'Cloud Computing Services', price: 5000 },
+      { name: 'Software License', price: 12000 },
+      { name: 'Professional Services', price: 8000 },
+      { name: 'Hardware Equipment', price: 15000 },
+      { name: 'Consulting Services', price: 10000 },
+      { name: 'Data Storage', price: 3000 },
+      { name: 'API Usage', price: 2500 }
+    ];
+
     const randomVendor = vendors[Math.floor(Math.random() * vendors.length)];
-    const randomAmount = Math.floor(Math.random() * 50000) + 1000;
     const randomDate = new Date(Date.now() - Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000);
+    
+    // Generate 2-4 line items
+    const numItems = Math.floor(Math.random() * 3) + 2;
+    const lineItems = [];
+    let subtotal = 0;
+    
+    for (let i = 0; i < numItems; i++) {
+      const product = products[Math.floor(Math.random() * products.length)];
+      const quantity = Math.floor(Math.random() * 5) + 1;
+      const price = product.price + Math.floor(Math.random() * 2000);
+      const amount = quantity * price;
+      subtotal += amount;
+      
+      lineItems.push({
+        description: product.name,
+        quantity,
+        unitPrice: price,
+        amount
+      });
+    }
+    
+    const taxRate = 0.18; // 18% GST
+    const taxAmount = Math.floor(subtotal * taxRate);
+    const totalAmount = subtotal + taxAmount;
 
     const document = await Document.create({
       user: req.user._id,
@@ -27,14 +67,17 @@ export const uploadDocument = async (req, res, next) => {
       fileSize: req.file.size,
       status: 'processed',
       invoiceNumber: 'INV-' + Math.floor(Math.random() * 100000),
-      vendorName: randomVendor,
-      totalAmount: randomAmount,
+      vendorName: randomVendor.name,
+      totalAmount: totalAmount,
       currency: 'USD',
       invoiceDate: randomDate,
       dueDate: new Date(randomDate.getTime() + 30 * 24 * 60 * 60 * 1000),
-      taxAmount: Math.floor(randomAmount * 0.18),
-      subtotal: Math.floor(randomAmount * 0.82),
-      gstNumber: '22AAAAA' + Math.floor(Math.random() * 10000) + 'A1Z5',
+      taxAmount: taxAmount,
+      subtotal: subtotal,
+      gstNumber: randomVendor.gst,
+      lineItems: lineItems,
+      paymentTerms: 'Net 30',
+      paymentStatus: Math.random() > 0.5 ? 'paid' : 'pending',
       confidenceScore: 0.92 + Math.random() * 0.07,
       ocrEngine: 'PaddleOCR',
       processingTime: Math.floor(Math.random() * 3000) + 500,
