@@ -8,6 +8,8 @@ import {
   deleteDocument,
   processDocument,
   exportDocuments,
+  bulkDelete,
+  getStats,
 } from '../controllers/document.controller.js';
 
 const router = express.Router();
@@ -32,9 +34,11 @@ router.use(protect);
 
 router.post('/upload', upload.single('file'), uploadDocument);
 router.get('/', getDocuments);
+router.get('/stats', getStats);
+router.get('/export', exportDocuments);
 router.get('/:id', getDocument);
 router.delete('/:id', deleteDocument);
+router.post('/bulk-delete', bulkDelete);
 router.post('/process/:id', processDocument);
-router.get('/export', exportDocuments);
 
 export default router;

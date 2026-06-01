@@ -232,13 +232,110 @@ export const deleteDocument = async (req, res, next) => {
 
 export const exportDocuments = async (req, res, next) => {
   try {
-    const documents = await Document.find({ user: req.user._id })
-      .select('-embedding -__v')
+    const { format = 'json', status, startDate, endDate } = req.query;
+    
+    const query = { user: req.user._id };
+    if (status) query.status = status;
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    const documents = await Document.find(query)
+      .select('-embedding -__v -fileUrl')
       .lean();
+
+    if (format === 'csv') {
+      // Convert to CSV
+      const csv = [
+        'Invoice Number,Vendor,Date,Amount,Currency,Status,Confidence',
+        ...documents.map(doc => 
+          `${doc.invoiceNumber},${doc.vendorName},${doc.invoiceDate},${doc.totalAmount},${doc.currency},${doc.status},${doc.confidenceScore}`
+        )
+      ].join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=invoices.csv');
+      return res.send(csv);
+    }
 
     res.json({
       success: true,
+      count: documents.length,
       documents,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDelete = async (req, res, next) => {
+  try {
+    const { documentIds } = req.body;
+    
+    if (!documentIds || !Array.isArray(documentIds)) {
+      throw new AppError('Please provide document IDs', 400);
+    }
+
+    const result = await Document.deleteMany({
+      _id: { $in: documentIds },
+      user: req.user._id
+    });
+
+    await cacheDel(`documents:${req.user._id}`);
+
+    res.json({
+      success: true,
+      message: `${result.deletedCount} documents deleted successfully`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getStats = async (req, res, next) => {
+  try {
+    const stats = await Document.aggregate([
+      { $match: { user: req.user._id, status: 'processed' } },
+      {
+        $facet: {
+          byStatus: [
+            { $group: { _id: '$paymentStatus', count: { $sum: 1 }, total: { $sum: '$totalAmount' } } }
+          ],
+          byCurrency: [
+            { $group: { _id: '$currency', count: { $sum: 1 }, total: { $sum: '$totalAmount' } } }
+          ],
+          byMonth: [
+            {
+              $group: {
+                _id: { $dateToString: { format: '%Y-%m', date: '$invoiceDate' } },
+                count: { $sum: 1 },
+                total: { $sum: '$totalAmount' }
+              }
+            },
+            { $sort: { _id: -1 } },
+            { $limit: 12 }
+          ],
+          topVendors: [
+            {
+              $group: {
+                _id: '$vendorName',
+                count: { $sum: 1 },
+                total: { $sum: '$totalAmount' }
+              }
+            },
+            { $sort: { total: -1 } },
+            { $limit: 5 }
+          ]
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      stats: stats[0]
     });
   } catch (error) {
     next(error);
