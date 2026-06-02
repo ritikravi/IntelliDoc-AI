@@ -341,3 +341,151 @@ export const getStats = async (req, res, next) => {
     next(error);
   }
 };
+
+export const detectDuplicates = async (req, res, next) => {
+  try {
+    const duplicates = await Document.aggregate([
+      { $match: { user: req.user._id, status: 'processed' } },
+      {
+        $group: {
+          _id: '$invoiceNumber',
+          count: { $sum: 1 },
+          documents: { $push: { id: '$_id', fileName: '$fileName', date: '$createdAt' } }
+        }
+      },
+      { $match: { count: { $gt: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    res.json({
+      success: true,
+      duplicates: duplicates.length,
+      data: duplicates
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fraudDetection = async (req, res, next) => {
+  try {
+    const suspiciousDocuments = [];
+
+    // Check for unusual amounts
+    const avgAmount = await Document.aggregate([
+      { $match: { user: req.user._id, status: 'processed' } },
+      { $group: { _id: null, avg: { $avg: '$totalAmount' }, stdDev: { $stdDevPop: '$totalAmount' } } }
+    ]);
+
+    if (avgAmount.length > 0) {
+      const { avg, stdDev } = avgAmount[0];
+      const threshold = avg + (2 * stdDev);
+
+      const unusualAmounts = await Document.find({
+        user: req.user._id,
+        status: 'processed',
+        totalAmount: { $gt: threshold }
+      }).select('invoiceNumber vendorName totalAmount invoiceDate confidenceScore');
+
+      suspiciousDocuments.push(...unusualAmounts.map(doc => ({
+        ...doc.toObject(),
+        reason: 'Unusual amount (>2 std dev)',
+        riskLevel: 'medium'
+      })));
+    }
+
+    // Check for low confidence scores
+    const lowConfidence = await Document.find({
+      user: req.user._id,
+      status: 'processed',
+      confidenceScore: { $lt: 0.85 }
+    }).select('invoiceNumber vendorName totalAmount confidenceScore');
+
+    suspiciousDocuments.push(...lowConfidence.map(doc => ({
+      ...doc.toObject(),
+      reason: 'Low OCR confidence',
+      riskLevel: 'high'
+    })));
+
+    // Check for duplicate amounts on same day
+    const sameDayDuplicates = await Document.aggregate([
+      { $match: { user: req.user._id, status: 'processed' } },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$invoiceDate' } },
+            amount: '$totalAmount',
+            vendor: '$vendorName'
+          },
+          count: { $sum: 1 },
+          docs: { $push: { id: '$_id', invoiceNumber: '$invoiceNumber' } }
+        }
+      },
+      { $match: { count: { $gt: 1 } } }
+    ]);
+
+    sameDayDuplicates.forEach(dup => {
+      suspiciousDocuments.push({
+        reason: 'Duplicate amount same day',
+        riskLevel: 'high',
+        vendor: dup._id.vendor,
+        amount: dup._id.amount,
+        count: dup.count,
+        documents: dup.docs
+      });
+    });
+
+    res.json({
+      success: true,
+      flaggedCount: suspiciousDocuments.length,
+      suspiciousDocuments: suspiciousDocuments.slice(0, 20)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const searchDocuments = async (req, res, next) => {
+  try {
+    const { q, minAmount, maxAmount, startDate, endDate, vendor } = req.query;
+
+    const query = { user: req.user._id, status: 'processed' };
+
+    if (q) {
+      query.$or = [
+        { invoiceNumber: new RegExp(q, 'i') },
+        { vendorName: new RegExp(q, 'i') },
+        { gstNumber: new RegExp(q, 'i') }
+      ];
+    }
+
+    if (minAmount || maxAmount) {
+      query.totalAmount = {};
+      if (minAmount) query.totalAmount.$gte = parseFloat(minAmount);
+      if (maxAmount) query.totalAmount.$lte = parseFloat(maxAmount);
+    }
+
+    if (startDate || endDate) {
+      query.invoiceDate = {};
+      if (startDate) query.invoiceDate.$gte = new Date(startDate);
+      if (endDate) query.invoiceDate.$lte = new Date(endDate);
+    }
+
+    if (vendor) {
+      query.vendorName = new RegExp(vendor, 'i');
+    }
+
+    const documents = await Document.find(query)
+      .select('-embedding -fileUrl')
+      .sort('-createdAt')
+      .limit(50);
+
+    res.json({
+      success: true,
+      count: documents.length,
+      documents
+    });
+  } catch (error) {
+    next(error);
+  }
+};

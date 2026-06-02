@@ -10,6 +10,9 @@ import {
   exportDocuments,
   bulkDelete,
   getStats,
+  detectDuplicates,
+  fraudDetection,
+  searchDocuments,
 } from '../controllers/document.controller.js';
 
 const router = express.Router();
@@ -35,6 +38,9 @@ router.use(protect);
 router.post('/upload', upload.single('file'), uploadDocument);
 router.get('/', getDocuments);
 router.get('/stats', getStats);
+router.get('/search', searchDocuments);
+router.get('/duplicates', detectDuplicates);
+router.get('/fraud-detection', fraudDetection);
 router.get('/export', exportDocuments);
 router.get('/:id', getDocument);
 router.delete('/:id', deleteDocument);
