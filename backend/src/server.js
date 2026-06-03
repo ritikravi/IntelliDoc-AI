@@ -16,6 +16,7 @@ import analyticsRoutes from './routes/analytics.routes.js';
 import searchRoutes from './routes/search.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import userRoutes from './routes/user.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use(`/api/${API_VERSION}/analytics`, analyticsRoutes);
 app.use(`/api/${API_VERSION}/search`, searchRoutes);
 app.use(`/api/${API_VERSION}/chat`, chatRoutes);
 app.use(`/api/${API_VERSION}/users`, userRoutes);
+app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 
 // Error handling
 app.use(errorHandler);
