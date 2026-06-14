@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { protect } from '../middleware/auth.js';
+import { auditLogger } from '../middleware/auditLogger.js';
 import {
   uploadDocument,
   getDocuments,
@@ -35,16 +36,16 @@ const upload = multer({
 
 router.use(protect);
 
-router.post('/upload', upload.single('file'), uploadDocument);
+router.post('/upload', upload.single('file'), auditLogger('created'), uploadDocument);
 router.get('/', getDocuments);
 router.get('/stats', getStats);
 router.get('/search', searchDocuments);
 router.get('/duplicates', detectDuplicates);
 router.get('/fraud-detection', fraudDetection);
-router.get('/export', exportDocuments);
-router.get('/:id', getDocument);
-router.delete('/:id', deleteDocument);
-router.post('/bulk-delete', bulkDelete);
-router.post('/process/:id', processDocument);
+router.get('/export', auditLogger('exported'), exportDocuments);
+router.get('/:id', auditLogger('viewed'), getDocument);
+router.delete('/:id', auditLogger('deleted'), deleteDocument);
+router.post('/bulk-delete', auditLogger('deleted'), bulkDelete);
+router.post('/process/:id', auditLogger('updated'), processDocument);
 
 export default router;

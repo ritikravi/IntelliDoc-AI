@@ -14,6 +14,7 @@ import Documents from './pages/Documents';
 import Analytics from './pages/Analytics';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
+import AuditLogs from './pages/AuditLogs';
 
 // Layout
 import Layout from './components/layout/Layout';
@@ -65,6 +66,7 @@ function App() {
             <Route path="documents" element={<Documents />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="chat" element={<Chat />} />
+            <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="profile" element={<Profile />} />
           </Route>
 

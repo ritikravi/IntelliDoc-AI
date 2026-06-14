@@ -7,6 +7,7 @@ import {
   MessageSquare,
   User,
   Sparkles,
+  Shield,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -16,6 +17,7 @@ const navigation = [
   { name: 'Documents', href: '/documents', icon: FileText },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'AI Chat', href: '/chat', icon: MessageSquare },
+  { name: 'Audit Logs', href: '/audit-logs', icon: Shield },
   { name: 'Profile', href: '/profile', icon: User },
 ];
 

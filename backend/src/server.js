@@ -21,6 +21,7 @@ import approvalRoutes from './routes/approval.routes.js';
 import categoryRoutes from './routes/category.routes.js';
 import recurringRoutes from './routes/recurring.routes.js';
 import budgetRoutes from './routes/budget.routes.js';
+import auditRoutes from './routes/audit.routes.js';
 
 dotenv.config();
 
@@ -61,6 +62,7 @@ app.use(`/api/${API_VERSION}/approvals`, approvalRoutes);
 app.use(`/api/${API_VERSION}/categories`, categoryRoutes);
 app.use(`/api/${API_VERSION}/recurring`, recurringRoutes);
 app.use(`/api/${API_VERSION}/budgets`, budgetRoutes);
+app.use(`/api/${API_VERSION}/audit`, auditRoutes);
 
 // Error handling
 app.use(errorHandler);
